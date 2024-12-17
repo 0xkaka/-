@@ -105,59 +105,58 @@ bot.on('message', async (msg) => {
                 });
             });
         });
-    } else if (msg.text === 'Cek Total Transaksi') {
-        await fetchTransactionCount(chatId);
-    } else if (msg.text === 'Deploy Token') {
-    const contractPath = path.resolve("contracts", "MyToken.sol");
-    if (!fs.existsSync(contractPath)) {
-        bot.sendMessage(chatId, 'File kontrak MyToken.sol tidak ditemukan.');
-        return;
+   } else if (msg.text === '检查总交易数') { // 如果消息文本是 'Cek Total Transaksi'
+    await fetchTransactionCount(chatId); // 异步调用 fetchTransactionCount 函数，参数为 chatId
+} else if (msg.text === '部署代币') { // 如果消息文本是 'Deploy Token'
+    const contractPath = path.resolve("contracts", "MyToken.sol"); // 获取 MyToken.sol 合约文件的路径
+    if (!fs.existsSync(contractPath)) { // 检查合约文件是否存在
+        bot.sendMessage(chatId, '合约文件 MyToken.sol 未找到。'); // 发送消息告知用户文件未找到
+        return; // 结束函数执行
     }
 
-    try {
-        const { abi, bytecode } = compileContract(contractPath);
+    try { // 尝试执行以下代码
+        const { abi, bytecode } = compileContract(contractPath); // 编译合约，获取 ABI 和字节码
 
-        fs.writeFileSync("MyTokenABI.json", JSON.stringify(abi, null, 2));
-        fs.writeFileSync("MyTokenBytecode.txt", bytecode);
+        fs.writeFileSync("MyTokenABI.json", JSON.stringify(abi, null, 2)); // 将 ABI 写入 MyTokenABI.json 文件
+        fs.writeFileSync("MyTokenBytecode.txt", bytecode); // 将字节码写入 MyTokenBytecode.txt 文件
 
-        bot.sendMessage(chatId, 'Masukkan nama token (example: WrightL):');
-        bot.once('message', async (nameMsg) => {
-            const tokenName = nameMsg.text;
-            bot.sendMessage(chatId, 'Masukkan simbol token (example: WRL - Maksimal 4 huruf):');
-            bot.once('message', async (symbolMsg) => {
-                const tokenSymbol = symbolMsg.text;
-                bot.sendMessage(chatId, 'Masukkan total supply token (example: 10000000):');
-                bot.once('message', async (supplyMsg) => {
-                    const totalSupply = parseInt(supplyMsg.text);
+        bot.sendMessage(chatId, '请输入代币名称（例如：WrightL）:'); // 发送消息提示用户输入代币名称
+        bot.once('message', async (nameMsg) => { // 监听用户下一条消息，获取代币名称
+            const tokenName = nameMsg.text; // 获取用户输入的代币名称
+            bot.sendMessage(chatId, '请输入代币符号（例如：WRL - 最多4个字母）:'); // 发送消息提示用户输入代币符号
+            bot.once('message', async (symbolMsg) => { // 监听用户下一条消息，获取代币符号
+                const tokenSymbol = symbolMsg.text; // 获取用户输入的代币符号
+                bot.sendMessage(chatId, '请输入代币总供应量（例如：10000000）:'); // 发送消息提示用户输入总供应量
+                bot.once('message', async (supplyMsg) => { // 监听用户下一条消息，获取总供应量
+                    const totalSupply = parseInt(supplyMsg.text); // 将用户输入的总供应量转换为整数
 
-                    if (totalSupply > 99999999) {
-                        bot.sendMessage(chatId, 'Total supply token tidak boleh lebih dari 99,999,999. Silakan coba lagi.');
-                        return;
+                    if (totalSupply > 99999999) { // 检查总供应量是否超过限制
+                        bot.sendMessage(chatId, '代币总供应量不能超过 99,999,999。请重试。'); // 发送消息告知用户总供应量过大
+                        return; // 结束函数执行
                     }
 
-                    try {
-                        const account = web3Unichain.eth.accounts.privateKeyToAccount(privateKey);
-                        web3Unichain.eth.accounts.wallet.add(account);
+                    try { // 尝试执行以下代码
+                        const account = web3Unichain.eth.accounts.privateKeyToAccount(privateKey); // 使用私钥创建账户
+                        web3Unichain.eth.accounts.wallet.add(account); // 将账户添加到钱包
 
-                        if (senderAddress.toLowerCase() !== account.address.toLowerCase()) {
-                            throw new Error("Alamat pengirim tidak sesuai dengan private key.");
+                        if (senderAddress.toLowerCase() !== account.address.toLowerCase()) { // 检查发送地址是否与私钥匹配
+                            throw new Error("发送地址与私钥不匹配。"); // 抛出错误
                         }
 
-                        const contract = new web3Unichain.eth.Contract(abi);
-                        const deployTx = contract.deploy({
-                            data: bytecode,
-                            arguments: [tokenName, tokenSymbol, totalSupply],
+                        const contract = new web3Unichain.eth.Contract(abi); // 创建合约实例
+                        const deployTx = contract.deploy({ // 创建部署交易
+                            data: bytecode, // 设置字节码
+                            arguments: [tokenName, tokenSymbol, totalSupply], // 设置构造函数参数
                         });
 
-                        const gasEstimate = await deployTx.estimateGas({ from: senderAddress });
-                        const receipt = await deployTx.send({
-                            from: senderAddress,
-                            gas: gasEstimate,
+                        const gasEstimate = await deployTx.estimateGas({ from: senderAddress }); // 估算 Gas 消耗量
+                        const receipt = await deployTx.send({ // 发送部署交易
+                            from: senderAddress, // 设置发送地址
+                            gas: gasEstimate, // 设置 Gas 消耗量
                         });
 
-                        const deployData = `${receipt.options.address}|${tokenName}\n`;
-                        fs.appendFileSync('deploy.txt', deployData, 'utf8');
-
+                        const deployData = `${receipt.options.address}|${tokenName}\n`; // 创建部署数据字符串
+                        fs.appendFileSync('deploy.txt', deployData, 'utf8'); 
 
                         let transferTx;
                         try {
@@ -208,12 +207,12 @@ bot.sendMessage(chatId, message);
         console.error("Error compiling contract:", compileError);
         bot.sendMessage(chatId, `Error compiling contract: ${compileError.message}`);
     }
-    } else if (msg.text === 'Kirim Token') {
+    } else if (msg.text === '发送代币') {
         let deployData = "";
         try {
             deployData = fs.readFileSync("deploy.txt", "utf8");
         } catch (err) {
-            bot.sendMessage(chatId, "Belum ada token yang di-deploy.");
+            bot.sendMessage(chatId, "尚未部署任何代币.");
             return;
         }
 
